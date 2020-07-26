@@ -1,0 +1,77 @@
+1. create a namespace called <example>
+kubectl create ns example
+
+2. Check the storageclass for host path provisioner
+kubectl get storageclass
+
+3. record the name of the hostpath that is in output for step 2 and put it in statefulset.yaml
+    storageClassName: "hostpath"
+
+
+4. Deploy our statefulset in example namespace
+kubectl -n example apply -f .\statefulsets\statefulset.yaml
+
+5. check pods being created one by one
+kubectl get pods
+run this command for as many replicas you asked for
+
+6. check persitant volumes being created one by one
+kubectl get pv
+run this command for as many replicas you asked for
+
+7. Enable Redis Cluster (https://rancher.com/blog/2019/deploying-redis-cluster)
+a. init ip address in varaiable
+$IPs = $(kubectl -n example get pods -l app=redis-cluster -o jsonpath='{range.items[*]}{.status.podIP}:6379 ')
+b. create one of the redis clusters
+kubectl -n example exec -it redis-cluster-0  -- /bin/sh -c "redis-cli -h 127.0.0.1 -p 6379 --cluster create ${IPs}"
+c. check state of the redis cluster
+kubectl -n example exec -it redis-cluster-0  -- /bin/sh -c "redis-cli -h 127.0.0.1 -p 6379 cluster info"
+
+8. create and deploy example app (counter when you hit a website, count the traffic)
+kubectl -n example apply -f .\statefulsets\example-app.yaml
+
+9. go to localhost to check it works, and then refresh to see if counter works
+
+10. check pods are working
+kubectl -n example get pods
+
+11. start deleting pods 0 and 4
+kubectl -n exampole delete pods redis-cluster-0 redis-cluster-4
+
+12. go to localhost to check app still works with no data lost even with deleted pods, and then refresh to see if counter works
+
+13. check pods to see deleted pods were recreated
+kubectl -n example get pods
+
+14. scale down to 4 pods
+kubectl -n example scale statefulset redis-cluster --replicas 4
+
+15. go to localhost and refresh to see no data lost
+
+16. check volumes to see still have six
+kubectl -n example get pv
+
+17. scale back up to 6 pods & mount to same volumes
+kubectl -n example scale statefulset redis-cluster --replicas 6
+
+18. check localhost to see if no data lost
+
+19. scale down to 1
+kubectl -n example scale statefulset redis-cluster --replicas 1
+
+20. cehck to  see we still have volumes
+kubectl -n example get pods
+
+21. go to localhost and try to refresh, it wont
+
+22. check what happenned to see fail
+kubectl -n example exec -it redis-cluster-0 --/bin/sh -c "redis-cli -h 127.0.0.1 -p 6370 cluster info"
+
+23. scale back up to 6
+kubectl -n example scale statefulset redis-cluster --replicas 6
+
+24. if check state from step 22 we still have outage
+
+
+
+
